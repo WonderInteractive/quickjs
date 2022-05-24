@@ -46,6 +46,9 @@
 #include <termios.h>
 #include <sys/ioctl.h>
 #include <sys/wait.h>
+#if defined(__EMSCRIPTEN__)
+#include <emscripten.h>
+#endif
 
 #if defined(__APPLE__)
 typedef sig_t sighandler_t;
@@ -691,7 +694,11 @@ static JSValue js_std_getenviron(JSContext *ctx, JSValueConst this_val,
     obj = JS_NewObject(ctx);
     if (JS_IsException(obj))
         return JS_EXCEPTION;
+#ifdef __EMSCRIPTEN__
+    EM_ASM(console.error('TODO'));
+#else
     envp = environ;
+#endif
     for(idx = 0; envp[idx] != NULL; idx++) {
         name = envp[idx];
         p = strchr(name, '=');
@@ -1919,6 +1926,9 @@ typedef void (*sighandler_t)(int sig_num);
 static JSValue js_os_signal(JSContext *ctx, JSValueConst this_val,
                             int argc, JSValueConst *argv)
 {
+#ifdef __EMSCRIPTEN__
+    EM_ASM(console.error('not implemented'));
+#else
     JSRuntime *rt = JS_GetRuntime(ctx);
     JSThreadState *ts = JS_GetRuntimeOpaque(rt);
     JSOSSignalHandler *sh;
@@ -1960,6 +1970,7 @@ static JSValue js_os_signal(JSContext *ctx, JSValueConst this_val,
         sh->func = JS_DupValue(ctx, func);
         signal(sig_num, os_signal_handler);
     }
+#endif
     return JS_UNDEFINED;
 }
 
@@ -2839,7 +2850,12 @@ static JSValue js_os_exec(JSContext *ctx, JSValueConst this_val,
     JSValueConst options, args = argv[0];
     JSValue val, ret_val;
     const char **exec_argv, *file = NULL, *str, *cwd = NULL;
-    char **envp = environ;
+#ifdef __EMSCRIPTEN__
+    char** envp;
+    EM_ASM(console.error('TODO'));
+#else
+    char** envp = environ;
+#endif
     uint32_t exec_argc, i;
     int ret, pid, status;
     BOOL block_flag = TRUE, use_path = TRUE;
@@ -3015,8 +3031,11 @@ static JSValue js_os_exec(JSContext *ctx, JSValueConst this_val,
     for(i = 0; i < exec_argc; i++)
         JS_FreeCString(ctx, exec_argv[i]);
     js_free(ctx, exec_argv);
+#ifdef __EMSCRIPTEN__
+    EM_ASM(console.error('TODO'));
+#else
     if (envp != environ) {
-        char **p;
+        char** p;
         p = envp;
         while (*p != NULL) {
             js_free(ctx, *p);
@@ -3024,6 +3043,7 @@ static JSValue js_os_exec(JSContext *ctx, JSValueConst this_val,
         }
         js_free(ctx, envp);
     }
+#endif
     return ret_val;
  exception:
     ret_val = JS_EXCEPTION;
